@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>CHRONOS</title>
+    <style>
+        /* --- TERMINAL AESTHETICS V14 --- */
+        :root {
+            --emerald-dark: #000500;
+            --emerald-main: #00ff41;
+            --emerald-dim: #008F11;
+            --gold: #FFD700;
+            --gold-dim: #B8860B;
+            --text-main: #E0E0E0;
+            --glass: rgba(0, 255, 65, 0.05);
+            --border: 1px solid var(--emerald-dim);
+            --font-mono: 'Courier New', Courier, monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            background-color: var(--emerald-dark);
+            color: var(--text-main);
+            font-family: var(--font-mono);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .app-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            padding-bottom: 80px;
+            max-width: 600px;
+            margin: 0 auto;
+            width: 100%;
+            border-left: var(--border);
+            border-right: var(--border);
+            position: relative;
+            overflow-y: auto; 
+            min-height: 100vh;
+        }
+
+        /* Scanline */
+        .app-container::before {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 2;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        /* Pages */
+        .page { display: none; width: 100%; flex-direction: column; }
+        .page.active { display: flex; }
+
+        header {
+            text-align: center;
+            padding-bottom: 20px;
+            border-bottom: var(--border);
+            margin-bottom: 20px;
+            flex-shrink: 0;
+        }
+
+        h1 {
+            color: var(--gold);
+            font-size: 1.2rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .status-badge {
+            font-size: 0.65rem;
+            color: var(--emerald-main);
+            background: var(--glass);
+            padding: 4px 8px;
+            border: 1px solid var(--emerald-main);
+            display: inline-block;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* --- DIAL --- */
+        .dial-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            z-index: 3;
+            min-height: 300px; 
+        }
+
+        .planet-symbol {
+            font-size: 6rem;
+            color: var(--gold);
+            text-shadow: 0 0 25px var(--emerald-main);
+            margin-bottom: 10px;
+            animation: pulse 4s infinite ease-in-out;
+        }
+
+        .planet-name {
+            font-size: 2.2rem;
+            color: var(--emerald-main);
+            font-weight: bold;
+            text-transform: uppercase;
+            text-shadow: 0 0 10px var(--emerald-dim);
+            letter-spacing: 2px;
+        }
+
+        .time-remaining {
+            margin-top: 20px;
+            font-size: 1.1rem;
+            color: var(--gold-dim);
+            border: 1px solid var(--emerald-dim);
+            padding: 12px 25px;
+            background: rgba(0,0,0,0.5);
+            text-align: center;
+        }
+
+        /* --- TEMPLE --- */
+        .temple-intro {
+            text-align: center;
+            margin-bottom: 30px;
+            color: var(--emerald-main);
+            font-size: 0.9rem;
+            line-height: 1.6;
+            padding-bottom: 10px;
+        }
+
+        .planet-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            padding-bottom: 20px;
+        }
+
+        .planet-card {
+            background: var(--glass);
+            border: 1px solid var(--emerald-dim);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            min-height: 180px; 
+        }
+
+        .planet-card:active { transform: scale(0.98); }
+
+        .p-symbol { font-size: 2rem; color: var(--gold); margin-bottom: 5px; }
+        .p-name { font-size: 0.8rem; color: var(--text-main); text-transform: uppercase; letter-spacing: 1px; }
+        
+        .progress-container {
+            width: 100%;
+            height: 4px;
+            background: #222;
+            margin-top: 10px;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .progress-fill { height: 100%; background: var(--gold); width: 0%; transition: width 0.5s ease; }
+        .shard-count { font-size: 0.65rem; color: var(--gold); margin-top: 4px; }
+
+        .unlock-btn {
+            margin-top: 8px;
+            font-size: 0.65rem;
+            padding: 6px 10px;
+            border: 1px solid var(--emerald-main);
+            background: transparent;
+            color: var(--emerald-main);
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: 0.3s;
+            width: 100%;
+            text-align: center;
+        }
+
+        .unlock-btn.locked {
+            border-color: #555;
+            color: #555;
+            cursor: not-allowed;
+        }
+
+        .unlock-btn.active {
+            background: var(--emerald-main);
+            color: black;
+            box-shadow: 0 0 10px var(--emerald-main);
+            animation: glow 2s infinite;
+        }
+
+        .unlock-btn.completed {
+            background: var(--gold);
+            color: black;
+            border-color: var(--gold);
+        }
+
+        .unlock-btn.spent {
+            border-color: var(--gold-dim);
+            color: var(--gold-dim);
+            cursor: not-allowed;
+        }
+
+        @keyframes glow {
+            0% { box-shadow: 0 0 5px var(--emerald-main); }
+            50% { box-shadow: 0 0 20px var(--emerald-main); }
+            100% { box-shadow: 0 0 5px var(--emerald-main); }
+        }
+
+        /* --- RITUAL WISH MODAL --- */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 5, 0, 0.92);
+            z-index: 50;
+            align-items: center;
+            justify-content: center;
+            padding: 25px;
+        }
+
+        .modal-overlay.open { display: flex; }
+
+        .modal-box {
+            width: 100%;
+            max-width: 380px;
+            border: 1px solid var(--emerald-main);
+            background: #000500;
+            padding: 30px 25px;
+            text-align: center;
+            box-shadow: 0 0 40px rgba(0, 255, 65, 0.15);
+            animation: modalIn 0.25s ease;
+        }
+
+        @keyframes modalIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .modal-symbol {
+            font-size: 3rem;
+            color: var(--gold);
+            text-shadow: 0 0 20px var(--emerald-main);
+            margin-bottom: 8px;
+        }
+
+        .modal-title {
+            font-size: 1.4rem;
+            color: var(--emerald-main);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 4px;
+        }
+
+        .modal-sub {
+            font-size: 0.65rem;
+            color: var(--gold-dim);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+        }
+
+        .wish-input {
+            width: 100%;
+            background: rgba(0, 255, 65, 0.05);
+            border: 1px solid var(--emerald-dim);
+            color: var(--gold);
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            padding: 12px;
+            text-align: center;
+            outline: none;
+            letter-spacing: 1px;
+        }
+
+        .wish-input:focus { border-color: var(--emerald-main); box-shadow: 0 0 10px rgba(0,255,65,0.2); }
+        .wish-input::placeholder { color: #3a5a3a; }
+
+        .char-count {
+            font-size: 0.55rem;
+            color: var(--emerald-dim);
+            text-align: right;
+            margin-top: 4px;
+        }
+
+        .modal-btns {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            padding: 10px 6px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .modal-btn.cancel {
+            background: transparent;
+            border: 1px solid #555;
+            color: #777;
+        }
+
+        .modal-btn.confirm {
+            background: var(--emerald-main);
+            border: 1px solid var(--emerald-main);
+            color: black;
+            box-shadow: 0 0 10px var(--emerald-main);
+        }
+
+        .modal-btn.confirm:disabled {
+            background: transparent;
+            border: 1px solid #555;
+            color: #555;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        /* --- ARCHIVE: LIBRARY --- */
+        .archive-intro {
+            text-align: center;
+            color: var(--emerald-main);
+            font-size: 0.8rem;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .book-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            padding-bottom: 20px;
+        }
+
+        .book-card {
+            background: var(--glass);
+            border: 1px solid var(--emerald-dim);
+            text-decoration: none;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+            overflow: hidden;
+            position: relative;
+        }
+
+        a.book-card:active { transform: scale(0.98); }
+
+        .book-card.disabled {
+            opacity: 0.55;
+            cursor: default;
+        }
+
+        .coming-soon-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: var(--gold);
+            color: black;
+            font-size: 0.5rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 3px 7px;
+            z-index: 2;
+        }
+
+        .book-cover {
+            width: 100%;
+            aspect-ratio: 2 / 3;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 12px;
+            background: linear-gradient(160deg, #0a1a0a, #000500);
+            border-bottom: 1px solid var(--emerald-dim);
+        }
+
+        .book-cover img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .book-fallback-title {
+            color: var(--gold);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            line-height: 1.4;
+        }
+
+        .book-fallback-author {
+            color: var(--emerald-dim);
+            font-size: 0.6rem;
+            margin-top: 8px;
+            letter-spacing: 1px;
+        }
+
+        .book-fallback-soon {
+            color: var(--emerald-main);
+            font-size: 0.55rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 14px;
+            border: 1px solid var(--emerald-dim);
+            padding: 4px 10px;
+        }
+
+        .book-meta {
+            padding: 10px;
+            text-align: center;
+        }
+
+        .book-title {
+            font-size: 0.65rem;
+            color: var(--text-main);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            line-height: 1.4;
+        }
+
+        .book-author {
+            font-size: 0.6rem;
+            color: var(--emerald-dim);
+            margin-top: 4px;
+        }
+
+        .book-cta {
+            display: block;
+            font-size: 0.55rem;
+            color: var(--emerald-main);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 8px;
+        }
+
+        /* --- NAVIGATION --- */
+        .nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            background: #000;
+            border-top: 1px solid var(--emerald-dim);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 10;
+            max-width: 600px;
+            margin: 0 auto;
+            right: 0;
+        }
+
+        .nav-btn {
+            background: none;
+            border: none;
+            color: var(--emerald-dim);
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .nav-btn.active { color: var(--emerald-main); text-shadow: 0 0 10px var(--emerald-main); }
+
+        /* Data Grid */
+        .data-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+            z-index: 3;
+        }
+
+        .data-card {
+            background: var(--glass);
+            border: 1px solid var(--emerald-dim);
+            padding: 12px;
+            text-align: center;
+        }
+
+        .data-label {
+            font-size: 0.65rem;
+            color: var(--emerald-main);
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            letter-spacing: 1px;
+        }
+
+        .data-value {
+            font-size: 0.9rem;
+            color: var(--gold);
+            font-weight: bold;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.8; text-shadow: 0 0 10px var(--emerald-main); transform: scale(1); }
+            50% { opacity: 1; text-shadow: 0 0 40px var(--emerald-main); transform: scale(1.05); }
+            100% { opacity: 0.8; text-shadow: 0 0 10px var(--emerald-main); transform: scale(1); }
+        }
+
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--gold); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 2px; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <!-- PAGE 1: TERMINAL -->
+    <div id="page-terminal" class="page active">
+        <header>
+            <h1>CHRONOS</h1>
+            <div class="status-badge">System Online</div>
+            <div id="location-display" style="font-size: 0.65rem; margin-top: 8px; opacity: 0.6; letter-spacing: 1px;">ACQUIRING SATELLITE LOCK...</div>
+        </header>
+
+        <div id="loading">Initializing Chaldean Sequence...</div>
+
+        <div class="dial-container" id="main-interface" style="display: none;">
+            <div class="planet-symbol" id="current-symbol">☉</div>
+            <div class="planet-name" id="current-planet">SOL</div>
+            <div class="hour-count">THE <span id="current-hour-num">1</span>ST HOUR <span id="period-label" style="opacity:0.6"></span></div>
+            
+            <div class="time-remaining">
+                NEXT: <span id="next-planet-name">LUNA</span> in <span id="mins-remaining">00</span>m <span id="secs-remaining">00</span>s
+            </div>
+        </div>
+
+        <div class="data-grid" id="data-interface" style="display: none;">
+            <div class="data-card">
+                <div class="data-label">Sunrise</div>
+                <div class="data-value" id="sunrise-time">--:--</div>
+            </div>
+            <div class="data-card">
+                <div class="data-label">Sunset</div>
+                <div class="data-value" id="sunset-time">--:--</div>
+            </div>
+            <div class="data-card">
+                <div class="data-label">Planetary Day</div>
+                <div class="data-value" id="day-ruler">--</div>
+            </div>
+            <div class="data-card">
+                <div class="data-label">Sequence</div>
+                <div class="data-value">CHALDEAN</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGE 2: TEMPLE -->
+    <div id="page-temple" class="page">
+        <header>
+            <h1>TEMPLE</h1>
+            <div class="status-badge">One Wish Per Day</div>
+        </header>
+
+        <div class="temple-intro">
+            EACH PLANET GRANTS ONE WISH PER DAY.<br>
+            APPROACH DURING ITS HOUR. STATE YOUR INTENT.<br>
+            SEVEN WISHES UNSEAL ITS SIGIL.
+        </div>
+
+        <div class="planet-grid" id="temple-grid">
+            <!-- Generated by JS -->
+        </div>
+    </div>
+
+    <!-- PAGE 3: ARCHIVE -->
+    <div id="page-archive" class="page">
+        <header>
+            <h1>ARCHIVE</h1>
+            <div class="status-badge">The Library</div>
+        </header>
+
+        <div class="archive-intro">
+            ENTER THE ANCIENT WORLD OF MAGIC.
+        </div>
+
+        <div class="book-grid" id="book-grid">
+            <!-- Generated by JS -->
+        </div>
+    </div>
+
+</div>
+
+<!-- RITUAL WISH MODAL -->
+<div id="wish-modal" class="modal-overlay">
+    <div class="modal-box">
+        <div class="modal-symbol" id="wish-symbol">☉</div>
+        <div class="modal-title" id="wish-planet">SOL</div>
+        <div class="modal-sub">State Your Intent</div>
+        <input type="text" id="wish-input" class="wish-input" maxlength="140" placeholder="Write it plainly..." autocomplete="off">
+        <div class="char-count"><span id="char-num">0</span>/140</div>
+        <div class="modal-btns">
+            <button class="modal-btn cancel" onclick="closeWishModal()">ABANDON</button>
+            <button class="modal-btn confirm" id="wish-confirm" onclick="confirmWish()" disabled>SEAL THE WISH</button>
+        </div>
+    </div>
+</div>
+
+<!-- NAV BAR -->
+<div class="nav-bar">
+    <button class="nav-btn active" onclick="switchPage('terminal', this)">CHRONOS</button>
+    <button class="nav-btn" onclick="switchPage('temple', this)">TEMPLE</button>
+    <button class="nav-btn" onclick="switchPage('archive', this)">ARCHIVE</button>
+</div>
+
+<script>
+    /* --- CONFIG --- */
+    const PLANETS = [
+        { 
+            id: 'sun', 
+            name: "Sun", 
+            symbol: "☉", 
+            color: "#FFD700",
+            talismanUrl: "https://i.postimg.cc/gJxXPHW0/Sunsigil.jpg" 
+        },
+        { 
+            id: 'mercury', 
+            name: "Mercury", 
+            symbol: "☿", 
+            color: "#00FF41",
+            talismanUrl: "https://i.postimg.cc/yNQg5rwW/mercury-sigil.jpg" 
+        },
+        { 
+            id: 'venus', 
+            name: "Venus", 
+            symbol: "♀", 
+            color: "#FF69B4",
+            talismanUrl: "https://i.postimg.cc/LXJYM3pX/venussigil.jpg" 
+        },
+        { 
+            id: 'moon', 
+            name: "Moon", 
+            symbol: "☽", 
+            color: "#E0E0E0",
+            talismanUrl: "https://i.postimg.cc/bvCDMFKr/moonsigil.jpg" 
+        },
+        { 
+            id: 'mars', 
+            name: "Mars", 
+            symbol: "♂", 
+            color: "#FF4500",
+            talismanUrl: "https://i.postimg.cc/R0s68bjN/marssigil.jpg" 
+        },
+        { 
+            id: 'jupiter', 
+            name: "Jupiter", 
+            symbol: "♃", 
+            color: "#B8860B",
+            talismanUrl: "https://i.postimg.cc/q7bhYZ9k/jupitersigil.jpg" 
+        },
+        { 
+            id: 'saturn', 
+            name: "Saturn", 
+            symbol: "♄", 
+            color: "#A0A0A0",
+            talismanUrl: "https://i.postimg.cc/rpn0bYvD/saturnsigil.jpg" 
+        }
+    ];
+
+    /* PLANET ARRAY INDICES: Sun=0, Mercury=1, Venus=2, Moon=3, Mars=4, Jupiter=5, Saturn=6 */
+
+    /* Day rulers by getDay(): Sun(0), Moon(1), Mars(2), Mercury(3), Jupiter(4), Venus(5), Saturn(6) */
+    const DAY_RULERS = [0, 3, 4, 1, 5, 2, 6];
+
+    /* TRUE Chaldean descent order (by PLANETS index):
+       Saturn -> Jupiter -> Mars -> Sun -> Venus -> Mercury -> Moon */
+    const CHALDEAN_ORDER = [6, 5, 4, 0, 2, 1, 3];
+
+    /* Position of each planet within the Chaldean order (indexed by PLANETS index) */
+    const CHALDEAN_POS = [3, 5, 4, 6, 2, 1, 0];
+
+    /* --- DEFAULT LOCATION: TORONTO --- */
+    const DEFAULT_LOCATION = { lat: 43.6532, lng: -79.3832, label: "TORONTO (FALLBACK)" };
+
+    /* --- ARCHIVE: OWN PUBLICATIONS ---
+       Ebooks live on Google Play Books — purchases and reading happen
+       on Google's platform, so no Play Billing integration is needed.
+       Set comingSoon: true on unreleased volumes (they render non-clickable). */
+    const BOOKS = [
+        {
+            title: "The Book of Causes",
+            subtitle: "An English Translation of the Sirr al-Khaliqa",
+            author: "Apollonios of Tyana",
+            cover: "https://i.postimg.cc/pVZrNhwS/bookofcauses.jpg",
+            url: "https://play.google.com/store/books/details?id=5VzcEQAAQBAJ",
+            comingSoon: false
+        },
+        {
+            title: "The Book of Magic",
+            subtitle: "De Magia, Theses de Magia & De Magia Mathematica",
+            author: "Giordano Bruno",
+            cover: "https://i.postimg.cc/ZqGkwFFR/cover.jpg",
+            url: "https://play.google.com/store/books/details?id=0C0XEgAAQBAJ",
+            comingSoon: false
+        },
+        {
+            title: "The Kyranides",
+            subtitle: "",
+            author: "Hermes Trismegistus",
+            cover: "",
+            url: "",
+            comingSoon: true
+        }
+    ];
+
+    const WISHES_PER_SIGIL = 7;
+
+    let userShards = JSON.parse(localStorage.getItem('chronos_shards')) || {};
+    let userWishes = JSON.parse(localStorage.getItem('chronos_wishes')) || {};
+    let wishJournal = JSON.parse(localStorage.getItem('chronos_journal')) || [];
+    let currentRulerPlanetIndex = -1;
+    let pendingWishPlanetId = null;
+
+    /* Local calendar date as YYYY-MM-DD — resets at the user's midnight */
+    function todayKey() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    /* --- NAVIGATION --- */
+    function switchPage(pageId, btn) {
+        document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+        document.getElementById(`page-${pageId}`).classList.add('active');
+        
+        document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        
+        if(pageId === 'temple') buildTemple();
+        if(pageId === 'archive') buildArchive();
+    }
+
+    /* --- TEMPLE & WISH LOGIC --- */
+    function buildTemple() {
+        const grid = document.getElementById('temple-grid');
+        grid.innerHTML = ''; 
+        const today = todayKey();
+
+        PLANETS.forEach((planet, index) => {
+            const shards = userShards[planet.id] || 0;
+            const isUnlocked = shards >= WISHES_PER_SIGIL;
+            const progressPercent = (shards / WISHES_PER_SIGIL) * 100;
+            const isActiveHour = (index === currentRulerPlanetIndex);
+            const wishedToday = userWishes[planet.id] === today;
+
+            const card = document.createElement('div');
+            card.className = 'planet-card';
+            
+            let actionHTML = '';
+            
+            if (isUnlocked) {
+                actionHTML = `
+                    <div class="p-symbol" style="color:${planet.color}; text-shadow: 0 0 15px ${planet.color}">${planet.symbol}</div>
+                    <div class="p-name" style="color:${planet.color}">${planet.name}</div>
+                    <div class="shard-count">SIGIL UNSEALED</div>
+                    <button class="unlock-btn completed" onclick="downloadTalisman('${planet.id}')">DOWNLOAD SIGIL</button>
+                `;
+            } else if (isActiveHour && !wishedToday) {
+                actionHTML = `
+                    <div class="p-symbol" style="color:${planet.color}">${planet.symbol}</div>
+                    <div class="p-name">${planet.name}</div>
+                    <div class="shard-count">${shards} / ${WISHES_PER_SIGIL} WISHES</div>
+                    <div class="progress-container">
+                        <div class="progress-fill" style="width: ${progressPercent}%"></div>
+                    </div>
+                    <button class="unlock-btn active" onclick="openWishModal('${planet.id}')">MAKE WISH</button>
+                `;
+            } else if (isActiveHour && wishedToday) {
+                actionHTML = `
+                    <div class="p-symbol" style="color:${planet.color}; opacity: 0.6">${planet.symbol}</div>
+                    <div class="p-name" style="opacity: 0.6">${planet.name}</div>
+                    <div class="shard-count">${shards} / ${WISHES_PER_SIGIL} WISHES</div>
+                    <div class="progress-container">
+                        <div class="progress-fill" style="width: ${progressPercent}%"></div>
+                    </div>
+                    <button class="unlock-btn spent">WISH GRANTED ✓</button>
+                `;
+            } else {
+                actionHTML = `
+                    <div class="p-symbol" style="color:${planet.color}; opacity: 0.3">${planet.symbol}</div>
+                    <div class="p-name" style="opacity: 0.5">${planet.name}</div>
+                    <div class="shard-count" style="opacity: 0.5">AWAITING HOUR</div>
+                    <button class="unlock-btn locked">LOCKED</button>
+                `;
+            }
+
+            card.innerHTML = actionHTML;
+            grid.appendChild(card);
+        });
+    }
+
+    /* --- RITUAL WISH MODAL --- */
+    function openWishModal(planetId) {
+        const today = todayKey();
+
+        /* Guard: one wish per planet per calendar day */
+        if (userWishes[planetId] === today) return;
+
+        pendingWishPlanetId = planetId;
+        const planet = PLANETS.find(p => p.id === planetId);
+
+        document.getElementById('wish-symbol').innerText = planet.symbol;
+        document.getElementById('wish-symbol').style.color = planet.color;
+        document.getElementById('wish-planet').innerText = planet.name;
+
+        const input = document.getElementById('wish-input');
+        input.value = '';
+        document.getElementById('char-num').innerText = '0';
+        document.getElementById('wish-confirm').disabled = true;
+
+        document.getElementById('wish-modal').classList.add('open');
+
+        /* Focus after the animation so mobile keyboards come up */
+        setTimeout(() => input.focus(), 250);
+    }
+
+    function closeWishModal() {
+        document.getElementById('wish-modal').classList.remove('open');
+        pendingWishPlanetId = null;
+    }
+
+    function confirmWish() {
+        const input = document.getElementById('wish-input');
+        const text = input.value.trim();
+
+        /* The logos matters: no empty wishes */
+        if (!text || !pendingWishPlanetId) return;
+
+        const today = todayKey();
+        const planet = PLANETS.find(p => p.id === pendingWishPlanetId);
+
+        /* Record the intention in the private on-device journal */
+        wishJournal.push({
+            planet: planet.id,
+            planetName: planet.name,
+            date: today,
+            text: text
+        });
+
+        userWishes[pendingWishPlanetId] = today;
+        if (!userShards[pendingWishPlanetId]) userShards[pendingWishPlanetId] = 0;
+        userShards[pendingWishPlanetId]++;
+
+        localStorage.setItem('chronos_journal', JSON.stringify(wishJournal));
+        localStorage.setItem('chronos_wishes', JSON.stringify(userWishes));
+        localStorage.setItem('chronos_shards', JSON.stringify(userShards));
+
+        const btn = document.getElementById('wish-confirm');
+        btn.innerText = "RECEIVED...";
+        btn.disabled = true;
+
+        setTimeout(() => {
+            closeWishModal();
+            buildTemple();
+        }, 700);
+    }
+
+    /* Live character counter + Enter-to-seal */
+    document.addEventListener('DOMContentLoaded', () => {
+        const input = document.getElementById('wish-input');
+        input.addEventListener('input', () => {
+            document.getElementById('char-num').innerText = input.value.length;
+            document.getElementById('wish-confirm').disabled = input.value.trim().length === 0;
+        });
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') confirmWish();
+        });
+    });
+
+    function downloadTalisman(planetId) {
+        const planet = PLANETS.find(p => p.id === planetId);
+        
+        if (planet && planet.talismanUrl) {
+            const link = document.createElement('a');
+            link.href = planet.talismanUrl;
+            link.download = `${planet.name}_Sigil.jpg`; 
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } else {
+            alert("Sigil link error.");
+        }
+    }
+
+    /* --- ARCHIVE: LIBRARY --- */
+    function buildArchive() {
+        const grid = document.getElementById('book-grid');
+        if (grid.dataset.built) return;
+        grid.dataset.built = '1';
+
+        BOOKS.forEach(book => {
+            /* Cover: image if provided, otherwise typographic placeholder */
+            let coverHTML;
+            if (book.cover) {
+                coverHTML = `<img src="${book.cover}" alt="${book.title}" loading="lazy">`;
+            } else {
+                coverHTML = `
+                    <div class="book-fallback-title">${book.title}</div>
+                    <div class="book-fallback-author">${book.author}</div>
+                    ${book.comingSoon ? '<div class="book-fallback-soon">Coming Soon</div>' : ''}
+                `;
+            }
+
+            let metaHTML = `
+                <div class="book-title">${book.title}</div>
+                ${book.subtitle ? `<div class="book-author">${book.subtitle}</div>` : ''}
+                ${!book.comingSoon ? '<div class="book-cta">Tap to Acquire →</div>' : ''}
+            `;
+
+            let card;
+            if (book.comingSoon || !book.url) {
+                card = document.createElement('div');
+                card.className = 'book-card disabled';
+                card.innerHTML = `
+                    ${book.comingSoon ? '<div class="coming-soon-badge">Coming Soon</div>' : ''}
+                    <div class="book-cover">${coverHTML}</div>
+                    <div class="book-meta">${metaHTML}</div>
+                `;
+            } else {
+                card = document.createElement('a');
+                card.className = 'book-card';
+                card.href = book.url;
+                card.target = '_blank';
+                card.rel = 'noopener';
+                card.innerHTML = `
+                    <div class="book-cover">${coverHTML}</div>
+                    <div class="book-meta">${metaHTML}</div>
+                `;
+            }
+
+            grid.appendChild(card);
+        });
+    }
+
+    /* --- CHRONOS LOGIC --- */
+    function getSunTimes(lat, lng, date) {
+        const rad = Math.PI / 180;
+        const dayOfYear = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
+
+        const declination = -0.40954 * Math.cos((2 * Math.PI / 366.0) * (dayOfYear + 10));
+
+        const cosH = (Math.cos(90.833 * rad) - (Math.sin(lat * rad) * Math.sin(declination))) / (Math.cos(lat * rad) * Math.cos(declination));
+        const H = (cosH < -1) ? Math.PI : (cosH > 1 ? 0 : Math.acos(cosH));
+        const dayLength = (H / rad) * 8;
+        const nightLength = 1440 - dayLength;
+
+        const B = 2 * Math.PI * (dayOfYear - 81) / 364;
+        const eot = 9.87 * Math.sin(2 * B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B);
+
+        const solarNoon = 720 - (lng * 4) - date.getTimezoneOffset() - eot;
+
+        const sunrise = solarNoon - (dayLength / 2);
+        const sunset = solarNoon + (dayLength / 2);
+        return { sunrise, sunset, dayLength, nightLength };
+    }
+
+    function formatTime(minutes) {
+        minutes = ((minutes % 1440) + 1440) % 1440;
+        let h = Math.floor(minutes / 60) % 24;
+        let m = Math.floor(minutes % 60);
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+    }
+
+    /* --- LOCATION BOOTSTRAP (with Toronto fallback) --- */
+    function startWithLocation(lat, lng, label) {
+        document.getElementById('location-display').innerText = `${label} | LAT: ${lat.toFixed(2)} | LNG: ${lng.toFixed(2)}`;
+        updateTerminal(lat, lng);
+        setInterval(() => updateTerminal(lat, lng), 1000);
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('main-interface').style.display = 'flex';
+        document.getElementById('data-interface').style.display = 'grid';
+    }
+
+    async function initApp() {
+        buildTemple();
+        buildArchive();
+
+        if (!navigator.geolocation) {
+            document.getElementById('location-display').innerText = "ERROR: NO GPS SIGNAL";
+            startWithLocation(DEFAULT_LOCATION.lat, DEFAULT_LOCATION.lng, DEFAULT_LOCATION.label);
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                startWithLocation(
+                    position.coords.latitude,
+                    position.coords.longitude,
+                    "SATELLITE LOCK"
+                );
+            },
+            (error) => {
+                document.getElementById('location-display').innerText = "SIGNAL LOST — DEFAULTING";
+                startWithLocation(DEFAULT_LOCATION.lat, DEFAULT_LOCATION.lng, DEFAULT_LOCATION.label);
+            },
+            { timeout: 8000 }
+        );
+    }
+
+    function updateTerminal(lat, lng) {
+        const now = new Date();
+        const currentMinutes = (now.getHours() * 60) + now.getMinutes() + (now.getSeconds() / 60);
+        const dayIndex = now.getDay();
+
+        const timesToday = getSunTimes(lat, lng, now);
+        const yesterday = new Date(now.getTime() - 86400000);
+        const timesYesterday = getSunTimes(lat, lng, yesterday);
+
+        /* A planetary day runs SUNRISE to SUNRISE, and the Chaldean sequence
+           runs CONTINUOUSLY through all 24 hours (12 day + 12 night). */
+        let planetaryDayIndex, periodStart, periodDuration, isDay;
+
+        if (currentMinutes >= timesToday.sunrise && currentMinutes < timesToday.sunset) {
+            planetaryDayIndex = dayIndex;
+            periodStart = timesToday.sunrise;
+            periodDuration = timesToday.dayLength / 12;
+            isDay = true;
+        } else if (currentMinutes >= timesToday.sunset) {
+            planetaryDayIndex = dayIndex;
+            periodStart = timesToday.sunset;
+            periodDuration = timesToday.nightLength / 12;
+            isDay = false;
+        } else {
+            planetaryDayIndex = (dayIndex + 6) % 7;
+            periodStart = timesYesterday.sunset;
+            periodDuration = timesYesterday.nightLength / 12;
+            isDay = false;
+        }
+
+        document.getElementById('sunrise-time').innerText = formatTime(timesToday.sunrise);
+        document.getElementById('sunset-time').innerText = formatTime(timesToday.sunset);
+        document.getElementById('day-ruler').innerText = PLANETS[DAY_RULERS[planetaryDayIndex]].name;
+
+        let minutesIntoPeriod = currentMinutes - periodStart;
+        if (minutesIntoPeriod < 0) minutesIntoPeriod += 1440; 
+        const currentHourIndex = Math.min(11, Math.floor(minutesIntoPeriod / periodDuration));
+
+        /* FIX: night hours CONTINUE the Chaldean sequence from where the
+           day hours ended — offset by 12. Previously the sequence restarted
+           at sunset, which broke every night hour. */
+        const sequenceOffset = isDay ? 0 : 12;
+        const dayRulerPos = CHALDEAN_POS[DAY_RULERS[planetaryDayIndex]];
+        const hourPos = (dayRulerPos + sequenceOffset + currentHourIndex) % 7;
+        const planetIndex = CHALDEAN_ORDER[hourPos];
+        const nextPlanetIndex = CHALDEAN_ORDER[(hourPos + 1) % 7];
+        
+        currentRulerPlanetIndex = planetIndex;
+
+        const currentPlanet = PLANETS[planetIndex];
+        const nextPlanet = PLANETS[nextPlanetIndex];
+        const hourProgress = minutesIntoPeriod % periodDuration;
+        const timeLeft = periodDuration - hourProgress;
+        
+        document.getElementById('current-planet').innerText = currentPlanet.name;
+        document.getElementById('current-planet').style.color = currentPlanet.color; 
+        document.getElementById('current-symbol').innerText = currentPlanet.symbol;
+        const ordinals = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th", "11th", "12th"];
+        document.getElementById('current-hour-num').innerText = ordinals[currentHourIndex];
+        document.getElementById('period-label').innerText = isDay ? "" : "OF THE NIGHT";
+        document.getElementById('next-planet-name').innerText = nextPlanet.name;
+        document.getElementById('next-planet-name').style.color = nextPlanet.color;
+        document.getElementById('mins-remaining').innerText = Math.floor(timeLeft).toString().padStart(2, '0');
+        document.getElementById('secs-remaining').innerText = Math.floor((timeLeft * 60) % 60).toString().padStart(2, '0');
+        
+        if(document.getElementById('page-temple').classList.contains('active')) {
+            buildTemple();
+        }
+    }
+
+    window.addEventListener('load', initApp);
+</script>
+</body>
+</html>
